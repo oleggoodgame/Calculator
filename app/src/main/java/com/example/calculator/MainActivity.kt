@@ -174,7 +174,7 @@ import java.math.RoundingMode
                          numbers.removeAt(index + 1)
                          operators.removeAt(index)
                      }
-                     else -> index++
+                     else -> index++ //123
                  }
              }
              var result = numbers[0].toInt()
