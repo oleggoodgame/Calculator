@@ -1,8 +1,8 @@
 # Calculator
 First good project!
 -----------------------
-The first trial code in turning over
-Ready, almost without errors in turrning2
+The first trial code in "turning over brain"
+Ready, almost without errors and bugs in "turrning2 brain"
 -----------------------
 ![image](https://github.com/user-attachments/assets/c762a7c3-a29b-438a-a491-ebdbdeb7745f)
 View of the project
