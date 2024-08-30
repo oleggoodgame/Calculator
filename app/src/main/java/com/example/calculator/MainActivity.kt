@@ -212,7 +212,12 @@ import kotlin.math.pow
 
         val resultText = if (bool) {
             val finalResultInt = findAllInt(numbers, operators)
-            formatResults(BigDecimal(finalResultInt))
+            if(finalResultInt=="infinity"){
+                finalResultInt
+            }
+            else {
+                formatResults(BigDecimal(finalResultInt))
+            }
         } else {
             val numberWithE = numbers.find { it.contains('E', ignoreCase = true) }
 
@@ -241,15 +246,23 @@ import kotlin.math.pow
                 Log.d("Calculator", "Numbers: $numbers")
                 Log.d("Calculator", "Operators: $operators")
             }
+
             if(numbers.size==1){
                 numbers.add("0")
                 operators.add("+")
+
                 val finalResultDouble = findAllDouble(numbers, operators)
-                formatResults(finalResultDouble.toBigDecimal())
+                if(finalResultDouble!="Infinity"){
+                    formatResults(finalResultDouble.toBigDecimal())
+                }
+                finalResultDouble
             }
             else{
                 val finalResultDouble = findAllDouble(numbers, operators)
-                formatResults(finalResultDouble.toBigDecimal())
+                if(finalResultDouble!="Infinity"){
+                    formatResults(finalResultDouble.toBigDecimal())
+                }
+                finalResultDouble
             }
         }
 
