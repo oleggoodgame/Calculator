@@ -2,7 +2,7 @@
 First good project!
 -----------------------
 The first trial code in "turning over brain"
-Ready, almost without errors and bugs in "turrning2 brain"
+Ready, almost without errors and bugs in "turrning2" brunches
 -----------------------
 ![image](https://github.com/user-attachments/assets/c762a7c3-a29b-438a-a491-ebdbdeb7745f)
 View of the project
