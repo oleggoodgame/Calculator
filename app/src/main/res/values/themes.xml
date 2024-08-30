@@ -24,5 +24,9 @@
         <item name="android:textColor">@color/black</item>
         <item name="android:textSize">30sp</item>
     </style>
-
+    <style name="MyButtonStyle4">
+        <item name="android:background">@drawable/shape_binary</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textSize">30sp</item>
+    </style>
 </resources>

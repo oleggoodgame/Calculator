@@ -1,57 +1,77 @@
 package com.example.calculator
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.calculator.databinding.ActivityMainBinding
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.math.MathContext
 import java.math.RoundingMode
+import kotlin.math.pow
 
 //  це клас у Kotlin (і Java), який дозволяє створювати та маніпулювати змінними рядками більш ефективно, ніж звичайний рядковий тип (String). Це особливо корисно, коли потрібно часто змінювати рядки, як у нашому випадку при побудові чисел.
  class MainActivity : AppCompatActivity() {
      private lateinit var binding: ActivityMainBinding
      private lateinit var adapter: RecyclerViewAdapter
+    private lateinit var viewModel: RecyclerViewModel
 
-     override fun onCreate(savedInstanceState: Bundle?) {
-         super.onCreate(savedInstanceState)
-         binding = ActivityMainBinding.inflate(layoutInflater)
-         setContentView(binding.root)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-         adapter = RecyclerViewAdapter { text ->
-             binding.textView4.text = text.text
-             adapter.delete(text)
-         }
-         val layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
-         layoutManager.stackFromEnd = true // Цей рядок налаштовує RecyclerView так, щоб нові елементи додавалися до кінця списку, а не на початок
-         binding.recyclerView.layoutManager = layoutManager
-         binding.recyclerView.adapter = adapter
+        viewModel = ViewModelProvider(this).get(RecyclerViewModel::class.java)
+        adapter = RecyclerViewAdapter { text ->
+            binding.textView4.text = text.text
+            viewModel.setText(text.text.toString())
+            adapter.delete(text)
+        }
+        val layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        layoutManager.stackFromEnd =
+            true // Цей рядок налаштовує RecyclerView так, щоб нові елементи додавалися до кінця списку, а не на початок
+        binding.recyclerView.layoutManager = layoutManager
+        binding.recyclerView.adapter = adapter
+        adapter.addText(viewModel.items.toString())
 
-         val buttons = listOf(
-             binding.button1, binding.button2, binding.button3, binding.button4, binding.button5,
-             binding.button6, binding.button7, binding.button8, binding.button9, binding.button10,
+        val buttons = listOf(
+            binding.button1, binding.button2, binding.button3, binding.button4, binding.button5,
+            binding.button6, binding.button7, binding.button8, binding.button9, binding.button10,
 
-         )
-         val buttonsAdditions = listOf(
-             binding.plus, binding.minus, binding.mnoj, binding.dil
-         )
-         buttons.forEach { button ->
-             button.setOnClickListener {
-                 onNumberButtonClick(button)
-             }
-         }
-         buttonsAdditions.forEach { button ->
-             button.setOnClickListener {
-                 onNumberButtonClickAddition(button)
-             }
-         }
-     }
+            )
+        val buttonsAdditions = listOf(
+            binding.plus, binding.minus, binding.mnoj, binding.dil
+        )
 
+        viewModel.items.observe(this) { items ->
+            adapter.setItems(items)
+        }
+
+        viewModel.text.observe(this) { text ->
+            binding.textView4.text = text
+        }
+
+        buttons.forEach { button ->
+            button.setOnClickListener {
+                onNumberButtonClick(button)
+            }
+        }
+        buttonsAdditions.forEach { button ->
+            button.setOnClickListener {
+                onNumberButtonClickAddition(button)
+            }
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        viewModel = ViewModelProvider(this).get(RecyclerViewModel::class.java)
+        viewModel.setText(binding.textView4.text.toString())
+    }
      private fun onNumberButtonClickAddition(button: View) {
          if (button is Button) {
              val currentText = binding.textView4.text.toString()
@@ -69,168 +89,359 @@ import java.math.RoundingMode
      }
 
 
-     private fun onNumberButtonClick(button: View) {
-         if (button is Button) {
-             val currentText = binding.textView4.text.toString()
-             if(binding.textView4.text.toString().first() == '0' && !currentText.contains(Regex("[.+\\-/*]") ))
-             {
-                 binding.textView4.text = ""
-             }
-             binding.AC.text = "C"
-             val buttonText = button.text.toString()
-             binding.textView4.append(buttonText)
-         }
+    private fun onNumberButtonClick(button: View) {
+        if (button is Button) {
+            var currentText = binding.textView4.text.toString()
+
+            if (currentText.first() == '0' && !currentText.contains(Regex("[.+\\-/*]"))) {
+                currentText = ""
+            }
+
+            val lastChar = currentText.lastOrNull()
+            val isOperator = lastChar != null && lastChar in "+-/*" // Це важливо для правильного додавання нових символів. Якщо останній символ — оператор, то це означає, що наступний символ має бути частиною нового числа, а не частиною попереднього.
+
+            val parts = currentText.split(Regex("(?=[+\\-/*])|(?<=[+\\-/*])")).toMutableList()
+            // шукає позиції, де за поточною позицією йде будь-який з символів
+            // шукає позиції, де перед поточною позицією є будь-який з цих символів.
+            var currentNumber = if (isOperator) "" else parts.last().replace(" ", "")
+            //Цей рядок визначає, з яким числом працювати далі. Якщо останній символ — оператор, то це означає, що нове число ще не було введене, тому currentNumber починається з порожнього рядка. Якщо оператор відсутній, тобто останній символ — це частина числа, то береться остання частина числа для продовження вводу.
+            val buttonText = button.text.toString()
+            // Регулярний вираз (?=[+\\-/*])|(?<=[+\\-/*])
+            //Цей вираз використовується для розділення рядка на частини, використовуючи оператори як роздільники.
+            //
+            //(?=[+\\-/*]): Це позитивний погляд вперед. Він знаходить позиції перед будь-яким оператором +, -, *, або / без включення самого оператора в роздільник.
+            //(?<=[+\\-/*]): Це позитивний погляд назад. Він знаходить позиції після будь-якого оператора +, -, *, або / без включення самого оператора в роздільник.
+            //Використання обох поглядів дозволяє розділити рядок таким чином, щоб оператори залишалися окремими частинами.
+            //
+            //Чому не використати [.+\\-/*]?
+            //
+            //[.+\\-/*] - це регулярний вираз, який би працював як набір символів (жоден з них), а не як роздільник. Це б не дозволило вам р
+            val hasDecimal = currentNumber.contains(".")
+            var integerPart = if (hasDecimal) currentNumber.split(".")[0] else currentNumber
+            var decimalPart = if (hasDecimal) currentNumber.split(".")[1] else ""
+            // . Якщо currentNumber = 532.234:
+            //hasDecimal буде true, оскільки в числі є десяткова точка.
+            //currentNumber.split(".") розділить число на дві частини:
+            //Перша частина (до крапки) — 532, тобто currentNumber.split(".")[0] буде "532".
+            //Друга частина (після крапки) — 234, тобто currentNumber.split(".")[1] буде "234".
+
+            //integerPart = "532"
+            //decimalPart = "" (порожній рядок, оскільки немає десяткової частини).
+            // Перевіряємо, чи можна додавати нові символи
+            if (hasDecimal) {
+                if (decimalPart.length < 8) { // Ліміт на 8 символів після крапки
+                    decimalPart += buttonText
+                }
+            } else {
+                if (integerPart.length < 8) { // Ліміт на 8 символів до крапки
+                    integerPart += buttonText
+                }
+            }
+
+            // Форматуємо число з урахуванням обмежень
+            val formattedIntegerPart = integerPart.reversed()
+                .chunked(3)
+                .joinToString(" ")
+                .reversed()
+
+            // Об'єднуємо цілу і десяткову частини
+            currentNumber = if (hasDecimal || decimalPart.isNotEmpty()) {
+                "$formattedIntegerPart.$decimalPart"
+            } else {
+                formattedIntegerPart
+            }
+
+            // Оновлюємо список частин виразу
+            if (isOperator) {
+                parts.add(currentNumber)
+            } else {
+                parts[parts.lastIndex] = currentNumber
+            }
+
+            // Оновлюємо текст у TextView
+            binding.textView4.text = parts.joinToString("")
+            binding.AC.text = "C"
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+    fun AC(view: View) {
+
+        if (binding.AC.text == "C") {
+            binding.textView4.text = "0"
+            binding.AC.text = "AC"
+        } else if (adapter.getItemCount() != 0 && binding.AC.text == "AC") {
+            adapter.deleteAll()
+        }
+    }
+
+
+    fun result(view: View) {
+        var bool = true
+        val expression = binding.textView4.text.toString()
+
+        if (!expression.contains(Regex("[+\\-/*]"))) {
+            return
+        }
+
+        Log.d("Calculator", "Original expression: $expression")
+        val (numbers, operators) = splitExpression(expression)
+        Log.d("Calculator", "Numbers: $numbers")
+        Log.d("Calculator", "Operators: $operators")
+
+        if (numbers.size == 1 && operators.size == 2) {
+            numbers.add("0")
+        }
+
+        for (i in numbers) {
+            if (i.contains('.') || i.contains('E', true)) {
+                bool = false
+                break
+            }
+        }
+
+        val resultText = if (bool) {
+            val finalResultInt = findAllInt(numbers, operators)
+            formatResults(BigDecimal(finalResultInt))
+        } else {
+            val numberWithE = numbers.find { it.contains('E', ignoreCase = true) }
+
+            if (numberWithE != null) {
+                val index = numbers.indexOf(numberWithE)
+                val nextChar = operators[index]
+                val nextNumber = BigDecimal(numbers[index + 1])
+                val exponent = nextNumber.toBigInteger()
+                if (nextChar == "+") {
+                    val newNumber = 10.0.pow(exponent.toDouble()) // 10^n
+                    numbers[index] = BigDecimal(newNumber)
+                        .setScale(exponent.toInt(), RoundingMode.HALF_UP)
+                        .stripTrailingZeros()
+                        .toPlainString()
+                }
+                else if (nextChar == "-") {
+                    val newNumber = 10.0.pow(-exponent.toDouble()) // 10^(-n)
+                    numbers[index] = BigDecimal(newNumber)
+                        .setScale(exponent.toInt(), RoundingMode.HALF_UP) // Округляємо до 14 знаків
+                        .stripTrailingZeros()
+                        .toPlainString()
+
+                }
+                numbers.removeAt(index + 1)
+                operators.removeAt(index)
+                Log.d("Calculator", "Numbers: $numbers")
+                Log.d("Calculator", "Operators: $operators")
+            }
+            if(numbers.size==1){
+                numbers.add("0")
+                operators.add("+")
+                val finalResultDouble = findAllDouble(numbers, operators)
+                formatResults(finalResultDouble.toBigDecimal())
+            }
+            else{
+                val finalResultDouble = findAllDouble(numbers, operators)
+                formatResults(finalResultDouble.toBigDecimal())
+            }
+        }
+
+
+        adapter.addText(binding.textView4.text.toString())
+        viewModel.addItem(binding.textView4.text.toString())
+        binding.textView4.text = formatResult(resultText)
+
+        bool = true
+    }
+
+
+    fun formatResult(result: String): String {
+        val parts = result.split('.')
+        val integerPart = parts[0] // 5 555 щоб це получити ми реверсуємо щоб легше працювати 5555
+        //Метод .chunked(n) в Kotlin розбиває рядок або список на частини (чанки) розміром n. Це дозволяє легко групувати символи або елементи в менші частини.
+        // і тоді розділяємо і забираємо назад reverse і буде 5 555
+        val formattedIntegerPart = integerPart.reversed().chunked(3).joinToString(" ").reversed()
+        return if (parts.size > 1) {
+            "$formattedIntegerPart.${parts[1]}"
+        } else {
+            formattedIntegerPart
+        }
+    }
+    fun splitExpression(expression: String): Pair<MutableList<String>, MutableList<String>> {
+        val numbers = mutableListOf<String>()
+        val operators = mutableListOf<String>()
+        var currentNumber = StringBuilder()
+        val operatorList = arrayListOf('+', '-', '*', '/', '%')
+
+        for (char in expression) {
+            when (char) {
+                '+', '-', '*', '/', '%' -> {
+                    // Додаємо попереднє число, якщо є
+                    if (currentNumber.isNotEmpty()) {
+                        // Видаляємо пробіли перед додаванням числа
+                        numbers.add(currentNumber.toString().replace(" ", ""))
+                        currentNumber = StringBuilder()
+                    }
+
+                    // Додаємо оператор тільки якщо попередній символ не був оператором
+                    if (char in operatorList) {
+                        operators.add(char.toString())
+                    }
+                }
+                else -> {
+                    // Додаємо цифри до поточного числа (включаючи пробіли)
+                    currentNumber.append(char)
+                }
+            }
+        }
+
+        if (currentNumber.isNotEmpty()) {
+            // Видаляємо пробіли перед додаванням останнього числа
+            numbers.add(currentNumber.toString().replace(" ", ""))
+        }
+
+        return Pair(numbers, operators)
+    }
+
+
+    private fun findAllInt(numbers: MutableList<String>, operators: MutableList<String>): String {
+        try {
+
+
+            if (numbers.size != operators.size) {
+                var index = 0
+                while (index < operators.size) {
+                    when (operators[index]) {
+                        "*" -> {
+                            val result =
+                                numbers[index].toBigInteger() * numbers[index + 1].toBigInteger()
+                            numbers[index] = result.toString()
+                            numbers.removeAt(index + 1)
+                            operators.removeAt(index)
+                        }
+
+                        "/" -> {
+                            val result = numbers[index].toBigDecimal()
+                                .divide(numbers[index + 1].toBigDecimal(), MathContext.DECIMAL128)
+                            val scale = result.scale()  // Перевіряємо кількість цифр після коми
+
+                            // Заокруглюємо до 10 знаків після коми, якщо їх більше
+                            val roundedResult = if (scale > 10) {
+                                result.setScale(10, RoundingMode.HALF_UP)
+                            } else {
+                                result
+                            }
+
+                            numbers[index] = roundedResult.toString()
+                            numbers.removeAt(index + 1)
+                            operators.removeAt(index)
+
+                            val fifi = formatResults(roundedResult)
+
+                            if (fifi.contains(".")) {
+                                val resultFin = findAllDouble(numbers, operators)
+                                return resultFin
+                            }
+                        }
+
+                        else -> index++
+                    }
+                }
+                var result = numbers[0].toBigInteger()
+                for (i in operators.indices) {
+                    when (operators[i]) {
+                        "+" -> result += numbers[i + 1].toBigInteger()
+                        "-" -> result -= numbers[i + 1].toBigInteger()
+                    }
+                }
+                return result.toString()
+            } else {
+                operators.removeAt(0)
+                var index = 0
+                while (index < operators.size) {
+                    when (operators[index]) {
+                        "*" -> {
+                            val result =
+                                numbers[index].toBigInteger() * numbers[index + 1].toBigInteger()
+                            numbers[index] = result.toString()
+                            numbers.removeAt(index + 1)
+                            operators.removeAt(index)
+                        }
+
+                        "/" -> {
+                            val result = numbers[index].toBigDecimal()
+                                .divide(numbers[index + 1].toBigDecimal(), MathContext.DECIMAL128)
+                            val scale = result.scale()  // Перевіряємо кількість цифр після коми
+
+                            // Заокруглюємо до 10 знаків після коми, якщо їх більше
+                            val roundedResult = if (scale > 10) {
+                                result.setScale(8, RoundingMode.HALF_UP)
+                            } else {
+                                result
+                            }
+
+                            numbers[index] = roundedResult.toString()
+                            numbers.removeAt(index + 1)
+                            operators.removeAt(index)
+
+                            val fifi = formatResults(roundedResult)
+
+                            if (fifi.contains(".")) {
+                                val resultFin = findAllDouble(numbers, operators)
+                                return resultFin
+                            }
+                        }
+
+                        else -> index++
+                    }
+                }
+                var result = numbers[0].toBigInteger().negate()
+                for (i in operators.indices) {
+                    when (operators[i]) {
+                        "+" -> result += numbers[i + 1].toBigInteger()
+                        "-" -> result -= numbers[i + 1].toBigInteger()
+                    }
+                }
+                return result.toString()
+            }
+        }catch (ex: Exception){
+            val result = "infinity"
+            return result
+        }
      }
 
-     fun AC(view: View) {
-         val currentText = binding.textView4.text.toString()
+     private fun findAllDouble(numbers: MutableList<String>, operators: MutableList<String>): String {
+         try{
 
-         if (currentText.isNotEmpty() && binding.textView4.text != "0" && binding.AC.text=="C") {
-             val updatedText = currentText.dropLast(1)
-             binding.textView4.text = if (updatedText.isEmpty()) "0" else updatedText
 
-             binding.AC.text = if (updatedText.isEmpty()) "AC" else "C"
-         }
-         else if(adapter.getItemCount() != 0 && binding.AC.text=="AC"){
-             adapter.deleteAll()
-         }
-     }
-
-     fun result(view: View) {
-         var bool = true
-         val expression = binding.textView4.text.toString()
-         Log.d("Calculator", "Original expression: $expression")
-         val (numbers, operators) = splitExpression(expression)
-         Log.d("Calculator", "Numbers: $numbers")
-         Log.d("Calculator", "Operators: $operators")
-
-         for (i in numbers) {
-             if (i.contains('.')) {
-                 bool = false
-                 break
-             }
-         }
-
-         if (bool) {
-             val finalResultInt = findAllInt(numbers, operators)
-             adapter.addText(binding.textView4.text.toString())
-             binding.textView4.text = finalResultInt.toString()
-         } else {
-             val finalResultDouble = findAllDouble(numbers, operators)
-             adapter.addText(binding.textView4.text.toString())
-             binding.textView4.text = formatResult(finalResultDouble)
-         }
-
-         bool = true
-     }
-
-     fun splitExpression(expression: String): Pair<MutableList<String>, MutableList<String>> {
-         val numbers = mutableListOf<String>()
-         val operators = mutableListOf<String>()
-         var currentNumber = StringBuilder()
-         val operatorList = arrayListOf('+', '-', '*', '/', '%')
-         for (char in expression) {
-             when (char) {
-                 '+', '-', '*', '/', '%' -> {
-                     // Додаємо попереднє число, якщо є
-                     if (currentNumber.isNotEmpty()) {
-                         numbers.add(currentNumber.toString())
-                         currentNumber = StringBuilder()
-                     }
-
-                     // Додаємо оператор тільки якщо попередній символ не був оператором
-                     if (char in operatorList) {
-                         operators.add(char.toString())
-                     }
-                 }
-                 else -> {
-                     // Додаємо цифри до поточного числа
-                     currentNumber.append(char)
-                 }
-             }
-         }
-
-         if (currentNumber.isNotEmpty()) {
-             numbers.add(currentNumber.toString())
-         }
-
-         return Pair(numbers, operators)
-     }
-
-     private fun findAllInt(numbers: MutableList<String>, operators: MutableList<String>): Int {
          if (numbers.size != operators.size) {
-             var index = 0
-             while (index < operators.size) {
-                 when (operators[index]) {
-                     "*" -> {
-                         val result = numbers[index].toInt() * numbers[index + 1].toInt()
-                         numbers[index] = result.toString()
-                         numbers.removeAt(index + 1)
-                         operators.removeAt(index)
-                     }
-                     "/" -> {
-                         val result = numbers[index].toInt() / numbers[index + 1].toInt()
-                         numbers[index] = result.toString()
-                         numbers.removeAt(index + 1)
-                         operators.removeAt(index)
-                     }
-                     else -> index++
-                 }
-             }
-             var result = numbers[0].toInt()
-             for (i in operators.indices) {
-                 when (operators[i]) {
-                     "+" -> result += numbers[i + 1].toInt()
-                     "-" -> result -= numbers[i + 1].toInt()
-                 }
-             }
-             return result
-         } else {
-             operators.removeAt(0)
-             var index = 0
-             while (index < operators.size) {
-                 when (operators[index]) {
-                     "*" -> {
-                         val result = numbers[index].toInt() * numbers[index + 1].toInt()
-                         numbers[index] = result.toString()
-                         numbers.removeAt(index + 1)
-                         operators.removeAt(index)
-                     }
-                     "/" -> {
-                         val result = numbers[index].toInt() / numbers[index + 1].toInt()
-                         numbers[index] = result.toString()
-                         numbers.removeAt(index + 1)
-                         operators.removeAt(index)
-                     }
-                     else -> index++
-                 }
-             }
-             var result = numbers[0].toInt() * -1
-             for (i in operators.indices) {
-                 when (operators[i]) {
-                     "+" -> result += numbers[i + 1].toInt()
-                     "-" -> result -= numbers[i + 1].toInt()
-                 }
-             }
-             return result
-         }
-     }
-
-     private fun findAllDouble(numbers: MutableList<String>, operators: MutableList<String>): Double {
-         if (numbers.size != operators.size) {
-                 // Виконуємо множення і ділення перш ніж додавання і віднімання
                  var index = 0
                  while (index < operators.size) {
                      when (operators[index]) {
                          "*" -> {
-                             val result = BigDecimal(numbers[index]).multiply(BigDecimal(numbers[index + 1]), MathContext.DECIMAL128).toDouble()
+                             val result = numbers[index].toBigDecimal() * numbers[index + 1].toBigDecimal()
                              numbers[index] = result.toString()
                              numbers.removeAt(index + 1)
                              operators.removeAt(index)
                          }
                          "/" -> {
-                             val result = BigDecimal(numbers[index]).divide(BigDecimal(numbers[index + 1]), MathContext.DECIMAL128).toDouble()
-                             numbers[index] = result.toString()
+                             val result = numbers[index].toBigDecimal().divide(numbers[index + 1].toBigDecimal(), MathContext.DECIMAL128)
+                             val scale = result.scale()  // Перевіряємо кількість цифр після коми
+
+                             // Заокруглюємо до 10 знаків після коми, якщо їх більше
+                             val roundedResult = if (scale > 14) {
+                                 result.setScale(8, RoundingMode.HALF_UP)
+                             } else {
+                                 result
+                             }
+                             numbers[index] = roundedResult.toString()
                              numbers.removeAt(index + 1)
                              operators.removeAt(index)
                          }
@@ -247,8 +458,8 @@ import java.math.RoundingMode
                          else -> result
                      }
                  }
-                // Використання MathContext.DECIMAL128 забезпечує високу точність при виконанні обчислень.
-                 return result.toDouble()
+                // Використання MathContext.DECIMAL128 забезпечує високу точність при виконанні обчислень
+                 return result.toString()
 
          } else {
              operators.removeAt(0)
@@ -256,13 +467,13 @@ import java.math.RoundingMode
              while (index < operators.size) {
                  when (operators[index]) {
                      "*" -> {
-                         val result = BigDecimal(numbers[index]).multiply(BigDecimal(numbers[index + 1],  MathContext.DECIMAL128)).toDouble()
+                         val result = numbers[index].toBigDecimal() * numbers[index + 1].toBigDecimal()
                          numbers[index] = result.toString()
                          numbers.removeAt(index + 1)
                          operators.removeAt(index)
                      }
                      "/" -> {
-                         val result = BigDecimal(numbers[index]).divide(BigDecimal(numbers[index + 1]),  MathContext.DECIMAL128).toDouble()
+                         val result = numbers[index].toBigDecimal().divide(numbers[index + 1].toBigDecimal(), MathContext.DECIMAL128)
                          numbers[index] = result.toString()
                          numbers.removeAt(index + 1)
                          operators.removeAt(index)
@@ -278,31 +489,60 @@ import java.math.RoundingMode
                      else -> result
                  }
              }
-             return result.toDouble()
+             return result.toString()
+         }
+         }catch (ex: Exception){
+             val result = "infinity"
+             return result
          }
      }
 
-     private fun formatResult(result: Double): String {
-         return if (result == result.toInt().toDouble()) {
-             result.toInt().toString()
-         } else {
-             result.toString()
+    private fun formatResults(result: BigDecimal): String {
+        val resultString = result.stripTrailingZeros().toPlainString()
+        val parts = resultString.split(".")
 
-         }
-     }
+        return if (parts.size == 2 && parts[1].toBigInteger() == BigInteger.ZERO) {
+            parts[0]  // Якщо після крапки лише нулі, повертаємо тільки цілу частину
+        } else {
+            resultString  // Повертаємо як є, якщо є не лише нулі після крапки
+        }
+    }
 
     fun procent(view: View) {
         val resultStr = binding.textView4.text.toString()
         val (numbers, operators) = splitExpression(resultStr)
+
         if (numbers.isNotEmpty()) {
             val lastNumber = numbers.last()
 
             if (lastNumber.isNotEmpty()) {
-                // Перетворюємо останнє число в BigDecimal і ділимо
-                val updatedNumber = lastNumber.toBigDecimal().divide(BigDecimal(100))
+                // Перетворюємо останнє число в BigDecimal і ділимо його на 100
+                var updatedNumber = lastNumber.toBigDecimal().divide(BigDecimal(100))
 
-                // Цей метод видаляє зайві нулі в кінці дробової частини числа, якщо такі є. Наприклад, число 1.2300 буде перетворене в 1.23
-                numbers[numbers.size - 1] = updatedNumber.stripTrailingZeros().toPlainString() // toPlainString() перетворює BigDecimal в звичайний рядок без наукової нотації.
+                // Перетворюємо результат у звичайний рядок без наукової нотації
+                var updatedNumberStr = updatedNumber.stripTrailingZeros().toPlainString()
+
+                // Перевіряємо, чи результат не містить експоненціальну нотацію (E)
+                if (updatedNumberStr.contains("E")) {
+                    // Якщо є "E", перетворюємо його на звичайний рядок за допомогою toPlainString()
+                    updatedNumberStr = updatedNumber.toPlainString()
+                }
+
+                // Розбиваємо рядок на цілу і дробову частини для перевірки кількості символів після крапки
+                if (updatedNumberStr.contains(".")) {
+                    val parts = updatedNumberStr.split(".")
+                    val integerPart = parts[0]
+                    val decimalPart = parts[1]
+
+                    // Перевіряємо, чи кількість символів після крапки не більше 8
+                    if (decimalPart.length > 8) {
+                        // Обрізаємо дробову частину до 8 символів
+                        updatedNumberStr = "$integerPart.${decimalPart.substring(0, 8)}"
+                    }
+                }
+
+                // Оновлюємо останнє число у списку numbers
+                numbers[numbers.size - 1] = updatedNumberStr
 
                 // Оновлюємо вираз і відображаємо його
                 val updatedExpression = joinText(numbers, operators)
@@ -310,6 +550,7 @@ import java.math.RoundingMode
             }
         }
     }
+
 
 
 
@@ -359,7 +600,13 @@ import java.math.RoundingMode
          }
      }
 
- }
+    fun Information(view: View) {
+        val bottomSheet = DialogsFragment.newInstance()
+        bottomSheet.show((view.context as AppCompatActivity).supportFragmentManager, bottomSheet.tag)
+
+    }
+
+}
 
 //Регулярний вираз ^0\\.\\d+$ в Kotlin використовується для перевірки, чи рядок відповідає певному шаблону. Давайте розглянемо, як саме він працює:
 //

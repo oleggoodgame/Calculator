@@ -239,18 +239,19 @@
         android:layout_marginBottom="4dp"
         android:text="0"
         android:textColor="@color/white"
-        android:textSize="50sp"
+        android:textSize="40sp"
         app:layout_constraintBottom_toTopOf="@+id/linearLayout"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="25dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@+id/textView4"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed" />
 
     <Button
         android:id="@+id/buttonPoint"
@@ -266,5 +267,44 @@
         app:layout_constraintHorizontal_bias="0.195"
         app:layout_constraintStart_toEndOf="@+id/button10" />
 
+    <Button
+        android:id="@+id/button13"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:onClick="Information"
+        android:text="Inf"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!--    <TableLayout-->
+<!--        android:layout_width="73dp"-->
+<!--        android:layout_height="73dp"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        tools:layout_editor_absoluteY="1dp">-->
+
+<!--        <TableRow-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent" />-->
+
+<!--        <TableRow-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent" />-->
+
+<!--        <TableRow-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent" />-->
+
+<!--        <TableRow-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent" />-->
+<!--    </TableLayout>-->
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+
+<!--    app:layout_constraintVertical_chainStyle має три основні значення:-->
+<!--    spread: Елементи в ланцюгу рівномірно розподіляються по всій доступній висоті. Це значення створює стандартний ланцюг, де елементи рівномірно заповнюють простір.-->
+
+<!--    spread_inside: Елементи в ланцюгу рівномірно розподіляються між першим і останнім елементом, але не намагаються заповнити простір за межами перших і останніх елементів.-->
+
+<!--    packed: Елементи в ланцюгу упаковуються разом до одного боку (верхнього або нижнього), і весь доступний простір між першим і останнім елементом буде пустим. Це корисно, якщо ви хочете, щоб елементи були згруповані разом і займали менше місця.-->

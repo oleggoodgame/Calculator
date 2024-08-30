@@ -21,7 +21,7 @@ class RecyclerViewAdapter(
         fun bind(text: String) = with(binding) {
             textView.text = text
             itemView.setOnClickListener {
-                onItemClick(binding.textView)
+                onItemClick(textView)
             }
         }
     }
@@ -58,5 +58,12 @@ class RecyclerViewAdapter(
     fun deleteAll(){
         textList.clear()
         notifyDataSetChanged() // повіщає адаптер про те, що дані змінилися, і весь список слід перерисувати.
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun setItems(newItems: List<String>) {
+        textList.clear() // Очистка поточного списку
+        textList.addAll(newItems) // Додавання нових елементів
+        notifyDataSetChanged() // Оновлення адаптера
     }
 }
